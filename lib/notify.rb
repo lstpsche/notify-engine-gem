@@ -6,6 +6,8 @@ require_relative "notify/config"
 require_relative "notify/payload_class"
 require_relative "notify/registry"
 require_relative "notify/adapters/base"
+require_relative "notify/mailer"
+require_relative "notify/adapters/email"
 require_relative "notify/dispatcher"
 require_relative "notify/engine"
 

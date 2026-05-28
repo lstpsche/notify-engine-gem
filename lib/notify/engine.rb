@@ -12,6 +12,10 @@ module Notify
       app.config.eager_load_paths << templates_path unless app.config.eager_load_paths.include?(templates_path)
     end
 
+    initializer "notify_engine.register_adapters" do
+      Notify.register_adapter(:email, Notify::Adapters::Email)
+    end
+
     initializer "notify_engine.registry" do |app|
       app.config.to_prepare do
         Notify.build_registry!(app.root.join(Notify.config.templates_path))
