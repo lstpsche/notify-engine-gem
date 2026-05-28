@@ -11,5 +11,17 @@ module Notify
       app.config.autoload_paths << templates_path unless app.config.autoload_paths.include?(templates_path)
       app.config.eager_load_paths << templates_path unless app.config.eager_load_paths.include?(templates_path)
     end
+
+    initializer "notify_engine.registry" do |app|
+      app.config.to_prepare do
+        Notify.build_registry!(app.root.join(Notify.config.templates_path))
+      end
+    end
+
+    initializer "notify_engine.freeze_registry" do |app|
+      app.config.after_initialize do
+        Notify.registry&.freeze! if Rails.env.production?
+      end
+    end
   end
 end

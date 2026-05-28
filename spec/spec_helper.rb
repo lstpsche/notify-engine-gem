@@ -11,6 +11,7 @@ RSpec.configure do |config|
     if defined?(Notify)
       Notify.reset_config!
       Notify.reset_adapters! if Notify.respond_to?(:reset_adapters!)
+      Notify.reset_registry! if Notify.respond_to?(:reset_registry!)
     end
   end
 end

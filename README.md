@@ -2,33 +2,33 @@
 
 `notify-engine` is a Rails engine gem for convention-over-configuration notification dispatch. The long-term design is filesystem-routed, multi-channel delivery from `app/notify_templates`, with payload classes and pluggable adapters.
 
-This repository is currently at Phase 0: gem foundation and configuration contract.
+This repository is currently at **Phase 1**: registry and template discovery.
 
-## Phase 0 Status
+## Current Status
 
 Implemented:
 
 - `Notify::VERSION`
-- `Notify.config`
-- `Notify.configure`
-- `Notify.reset_config!`
-- `Notify.register_adapter`
-- `Notify.registered_adapters`
-- `Notify.reset_adapters!`
+- `Notify.config`, `Notify.configure`, `Notify.reset_config!`
+- `Notify.register_adapter`, `Notify.registered_adapters`, `Notify.reset_adapters!`
 - `Notify::Config`
 - `Notify::Engine`
-- custom errors under `Notify`
+- Custom errors under `Notify`
+- `Notify::Registry` — filesystem-driven template scanner
+- `Notify.messages` — `{ message_name: [:adapter1, :adapter2] }`
+- `Notify.adapters` — `{ adapter: [:msg1, :msg2] }`
+- `Notify.registry` — direct registry access
+- Development reload via `to_prepare`; production freeze
 
 Not implemented yet:
 
-- `Notify.message`
-- filesystem registry scanning
-- payload classes
-- built-in email or Telegram adapters
-- test mode and test helpers
-- instrumentation
-- generators
-- full user guide
+- `Notify.message` dispatch
+- Payload classes
+- Built-in email or Telegram adapters
+- Test mode and test helpers
+- Instrumentation
+- Generators
+- Full user guide
 
 ## Installation
 
@@ -47,9 +47,41 @@ bundle exec rake
 gem build notify-engine.gemspec
 ```
 
-## Configuration
+## Template Directory Convention
 
-Phase 0 exposes a mutable configuration object. Runtime dispatch does not exist yet, but these keys are the foundation for later phases.
+Place templates in `app/notify_templates/<adapter>/<message>.<format>.<handler>`:
+
+```text
+app/notify_templates/
+├── email/
+│   ├── stuck_pg_jobs.html.erb
+│   ├── stuck_pg_jobs.text.erb     # multipart companion — same message
+│   ├── export_report.html.erb
+│   └── _disabled_message.html.erb # _ prefix = excluded from registry
+├── telegram/
+│   └── stuck_pg_jobs.md.erb
+└── stuck_pg_jobs.rb               # optional PayloadClass (Phase 2)
+```
+
+- Each subdirectory of `app/notify_templates/` is an **adapter name**.
+- Files within an adapter directory are **templates**. The base filename (without format and handler extensions) is the **message name**.
+- Files starting with `_` are excluded from the registry.
+- Multipart templates (`.html.erb` + `.text.erb`) are de-duplicated into a single message.
+- Template discovery is **format-agnostic**: any handler registered via `ActionView::Template::Handlers` is supported (ERB, Haml, Slim, etc.).
+
+### Introspection
+
+```ruby
+Notify.messages
+# => { export_report: [:email], stuck_pg_jobs: [:email, :telegram] }
+
+Notify.adapters
+# => { email: [:export_report, :stuck_pg_jobs], telegram: [:stuck_pg_jobs] }
+```
+
+Both are sorted alphabetically at all levels.
+
+## Configuration
 
 ```ruby
 Notify.configure do |config|
@@ -80,12 +112,9 @@ end
 
 ## Adapter Registration
 
-Phase 0 can record adapter classes for future dispatcher work. It does not deliver notifications.
+Adapter classes can be registered for future dispatcher work. The gem does not deliver notifications yet.
 
 ```ruby
-class CustomAdapter
-end
-
 Notify.register_adapter(:custom, CustomAdapter)
 Notify.registered_adapters
 # => { custom: CustomAdapter }
@@ -95,17 +124,10 @@ String keys are normalized to symbols, and registering the same key again replac
 
 ## Rails Engine
 
-`Notify::Engine` adds the configured notify template path to the host application's autoload and eager-load paths. By default, that path is:
-
-```text
-app/notify_templates
-```
-
-The engine does not scan templates, constantize payload classes, register routes, or install generators in Phase 0.
+`Notify::Engine` adds the configured template path to autoload and eager-load paths, builds the registry via `to_prepare` (rebuilt on each development reload, built once and frozen in production).
 
 ## Planned Next Phases
 
-- Registry and filesystem discovery.
 - Payload class DSL and resolution priority.
 - Adapter interface and delivery dispatcher.
 - Built-in email adapter and internal mailer.

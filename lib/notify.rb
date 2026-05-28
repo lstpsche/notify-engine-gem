@@ -3,6 +3,7 @@
 require_relative "notify/version"
 require_relative "notify/errors"
 require_relative "notify/config"
+require_relative "notify/registry"
 require_relative "notify/engine"
 
 module Notify
@@ -29,6 +30,26 @@ module Notify
 
     def reset_adapters!
       @adapter_classes = {}
+    end
+
+    def registry
+      @registry
+    end
+
+    def messages
+      registry&.messages || {}
+    end
+
+    def adapters
+      registry&.adapters || {}
+    end
+
+    def build_registry!(templates_path)
+      @registry = Registry.new(templates_path)
+    end
+
+    def reset_registry!
+      @registry = nil
     end
 
     private
