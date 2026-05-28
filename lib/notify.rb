@@ -3,6 +3,7 @@
 require_relative "notify/version"
 require_relative "notify/errors"
 require_relative "notify/config"
+require_relative "notify/payload_class"
 require_relative "notify/registry"
 require_relative "notify/engine"
 
