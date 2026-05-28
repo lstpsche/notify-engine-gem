@@ -5,6 +5,8 @@ require "set"
 
 module Notify
   class Registry
+    attr_reader :templates_path
+
     def initialize(templates_path)
       @templates_path = Pathname(templates_path)
       @message_adapters = {}

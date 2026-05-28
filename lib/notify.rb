@@ -5,6 +5,8 @@ require_relative "notify/errors"
 require_relative "notify/config"
 require_relative "notify/payload_class"
 require_relative "notify/registry"
+require_relative "notify/adapters/base"
+require_relative "notify/dispatcher"
 require_relative "notify/engine"
 
 module Notify
@@ -51,6 +53,10 @@ module Notify
 
     def reset_registry!
       @registry = nil
+    end
+
+    def message(name, **payload)
+      Dispatcher.new.dispatch(name, **payload)
     end
 
     private
