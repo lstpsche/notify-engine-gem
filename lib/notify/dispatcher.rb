@@ -158,8 +158,8 @@ module Notify
       recipients =
         payload_instance&.resolve(resolution[:recipient_method]) ||
         raw_payload[resolution[:recipient_kwarg]] ||
-        message_config(name)&.dig(resolution[:config_recipients_key]) ||
-        (resolution[:default_recipients_key] && adapter_config(adapter_key)&.dig(resolution[:default_recipients_key]))
+        resolve_callable(message_config(name)&.dig(resolution[:config_recipients_key])) ||
+        (resolution[:default_recipients_key] && resolve_callable(adapter_config(adapter_key)&.dig(resolution[:default_recipients_key])))
 
       recipients = Array(recipients)
 
@@ -174,7 +174,7 @@ module Notify
       subject =
         payload_instance&.resolve(:subject) ||
         raw_payload[:subject] ||
-        message_config(name)&.dig(:subject)
+        resolve_callable(message_config(name)&.dig(:subject))
 
       if resolution[:requires_subject] && (subject.nil? || subject.to_s.strip.empty?)
         raise MissingSubject, "No subject resolvable for adapter :#{adapter_key}"
@@ -198,26 +198,30 @@ module Notify
         options[:from] =
           payload_instance&.resolve(:email_from) ||
           raw_payload[:email_from] ||
-          message_config(name)&.dig(:email_from) ||
-          adapter_config(adapter_key)&.dig(:from)
+          resolve_callable(message_config(name)&.dig(:email_from)) ||
+          resolve_callable(adapter_config(adapter_key)&.dig(:from))
 
         cc = payload_instance&.resolve(:email_cc) ||
              raw_payload[:email_cc] ||
-             message_config(name)&.dig(:email_cc)
+             resolve_callable(message_config(name)&.dig(:email_cc))
         options[:cc] = cc if cc
 
         bcc = payload_instance&.resolve(:email_bcc) ||
               raw_payload[:email_bcc] ||
-              message_config(name)&.dig(:email_bcc)
+              resolve_callable(message_config(name)&.dig(:email_bcc))
         options[:bcc] = bcc if bcc
       end
 
       options[:delivery_method] =
         raw_payload[:delivery_method] ||
-        message_config(name)&.dig(:delivery_method) ||
-        adapter_config(adapter_key)&.dig(:delivery_method)
+        resolve_callable(message_config(name)&.dig(:delivery_method)) ||
+        resolve_callable(adapter_config(adapter_key)&.dig(:delivery_method))
 
       options
+    end
+
+    def resolve_callable(value)
+      value.respond_to?(:call) ? value.call : value
     end
 
     def message_config(name)

@@ -879,4 +879,182 @@ RSpec.describe Notify::Dispatcher do
       end
     end
   end
+
+  describe "Proc evaluation in per-message config (L4)" do
+    it "evaluates a Proc for email_recipients in per-message config" do
+      Dir.mktmpdir do |dir|
+        create_template(dir, "email", "proc_recip.html.erb")
+        Notify.build_registry!(dir)
+
+        adapter_class, calls = build_test_adapter
+        Notify.register_adapter(:email, adapter_class)
+
+        Notify.configure do |c|
+          c.messages[:proc_recip] = {
+            email_recipients: -> { ["dynamic@test.com", "admin@test.com"] },
+            subject: "s"
+          }
+        end
+
+        dispatcher.dispatch(:proc_recip)
+
+        expect(calls.first[:to]).to eq(["dynamic@test.com", "admin@test.com"])
+      end
+    end
+
+    it "evaluates a Proc for subject in per-message config" do
+      Dir.mktmpdir do |dir|
+        create_template(dir, "email", "proc_subj.html.erb")
+        Notify.build_registry!(dir)
+
+        adapter_class, calls = build_test_adapter
+        Notify.register_adapter(:email, adapter_class)
+
+        Notify.configure do |c|
+          c.messages[:proc_subj] = {
+            email_recipients: ["r@t.com"],
+            subject: -> { "Dynamic Subject" }
+          }
+        end
+
+        dispatcher.dispatch(:proc_subj)
+
+        expect(calls.first[:subject]).to eq("Dynamic Subject")
+      end
+    end
+
+    it "evaluates a Proc for email_from in per-message config" do
+      Dir.mktmpdir do |dir|
+        create_template(dir, "email", "proc_from.html.erb")
+        Notify.build_registry!(dir)
+
+        adapter_class, calls = build_test_adapter
+        Notify.register_adapter(:email, adapter_class)
+
+        Notify.configure do |c|
+          c.messages[:proc_from] = {
+            email_recipients: ["r@t.com"],
+            subject: "s",
+            email_from: -> { "dynamic-sender@test.com" }
+          }
+        end
+
+        dispatcher.dispatch(:proc_from)
+
+        expect(calls.first[:options][:from]).to eq("dynamic-sender@test.com")
+      end
+    end
+
+    it "evaluates a Proc for email_cc in per-message config" do
+      Dir.mktmpdir do |dir|
+        create_template(dir, "email", "proc_cc.html.erb")
+        Notify.build_registry!(dir)
+
+        adapter_class, calls = build_test_adapter
+        Notify.register_adapter(:email, adapter_class)
+
+        Notify.configure do |c|
+          c.messages[:proc_cc] = {
+            email_recipients: ["r@t.com"],
+            subject: "s",
+            email_cc: -> { ["cc@test.com"] }
+          }
+        end
+
+        dispatcher.dispatch(:proc_cc)
+
+        expect(calls.first[:options][:cc]).to eq(["cc@test.com"])
+      end
+    end
+
+    it "evaluates a Proc for email_bcc in per-message config" do
+      Dir.mktmpdir do |dir|
+        create_template(dir, "email", "proc_bcc.html.erb")
+        Notify.build_registry!(dir)
+
+        adapter_class, calls = build_test_adapter
+        Notify.register_adapter(:email, adapter_class)
+
+        Notify.configure do |c|
+          c.messages[:proc_bcc] = {
+            email_recipients: ["r@t.com"],
+            subject: "s",
+            email_bcc: -> { ["bcc@test.com"] }
+          }
+        end
+
+        dispatcher.dispatch(:proc_bcc)
+
+        expect(calls.first[:options][:bcc]).to eq(["bcc@test.com"])
+      end
+    end
+
+    it "Proc returning nil at L4 falls through to L5 default_recipients" do
+      Dir.mktmpdir do |dir|
+        create_template(dir, "email", "proc_nil.html.erb")
+        Notify.build_registry!(dir)
+
+        adapter_class, calls = build_test_adapter
+        Notify.register_adapter(:email, adapter_class)
+
+        Notify.configure do |c|
+          c.messages[:proc_nil] = {
+            email_recipients: -> { nil },
+            subject: "s"
+          }
+          c.adapters[:email][:default_recipients] = ["fallback@test.com"]
+        end
+
+        dispatcher.dispatch(:proc_nil)
+
+        expect(calls.first[:to]).to eq(["fallback@test.com"])
+      end
+    end
+
+    it "evaluates Procs lazily at dispatch time, not at config time" do
+      Dir.mktmpdir do |dir|
+        create_template(dir, "email", "proc_lazy.html.erb")
+        Notify.build_registry!(dir)
+
+        adapter_class, calls = build_test_adapter
+        Notify.register_adapter(:email, adapter_class)
+
+        dynamic_recipients = ["initial@test.com"]
+
+        Notify.configure do |c|
+          c.messages[:proc_lazy] = {
+            email_recipients: -> { dynamic_recipients },
+            subject: "s"
+          }
+        end
+
+        dynamic_recipients.replace(["updated@test.com"])
+
+        dispatcher.dispatch(:proc_lazy)
+
+        expect(calls.first[:to]).to eq(["updated@test.com"])
+      end
+    end
+  end
+
+  describe "Proc evaluation in adapter defaults (L5)" do
+    it "evaluates a Proc for default_recipients in adapter config" do
+      Dir.mktmpdir do |dir|
+        create_template(dir, "email", "proc_default.html.erb")
+        Notify.build_registry!(dir)
+
+        adapter_class, calls = build_test_adapter
+        Notify.register_adapter(:email, adapter_class)
+
+        Notify.configure do |c|
+          c.messages[:proc_default] = { subject: "s" }
+          c.adapters[:email][:default_recipients] = -> { ["global-dynamic@test.com"] }
+        end
+
+        dispatcher.dispatch(:proc_default)
+
+        expect(calls.first[:to]).to eq(["global-dynamic@test.com"])
+      end
+    end
+  end
 end

@@ -354,6 +354,32 @@ RSpec.describe "test mode" do
     end
   end
 
+  describe "Proc evaluation in config during capture" do
+    it "evaluates Procs for recipients and subject in per-message config" do
+      Dir.mktmpdir do |dir|
+        create_template(dir, "email", "proc_cap.html.erb")
+        Notify.build_registry!(dir)
+
+        adapter_class, _calls = build_test_adapter
+        Notify.register_adapter(:email, adapter_class)
+
+        Notify.configure do |c|
+          c.messages[:proc_cap] = {
+            email_recipients: -> { ["captured@test.com"] },
+            subject: -> { "Captured Subject" }
+          }
+        end
+
+        Notify.test_mode!
+        Notify.message(:proc_cap, data: "val")
+
+        delivery = Notify.deliveries.first
+        expect(delivery[:resolved][:recipients][:email]).to eq(["captured@test.com"])
+        expect(delivery[:resolved][:subject]).to eq("Captured Subject")
+      end
+    end
+  end
+
   describe "engine initializer" do
     it "defines a notify_engine.test_mode initializer" do
       initializer = Notify::Engine.initializers.find { |i| i.name == "notify_engine.test_mode" }
