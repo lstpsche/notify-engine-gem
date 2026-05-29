@@ -1,8 +1,10 @@
 # frozen_string_literal: true
 
+require_relative "lib/notify/version"
+
 Gem::Specification.new do |spec|
   spec.name = "notify-engine"
-  spec.version = "0.1.0"
+  spec.version = Notify::VERSION
   spec.authors = ["Nikita Shkoda"]
   spec.email = ["lstpsche@gmail.com"]
 
@@ -14,18 +16,19 @@ Gem::Specification.new do |spec|
 
   spec.metadata = {
     "homepage_uri" => spec.homepage,
-    "source_code_uri" => spec.homepage
+    "source_code_uri" => spec.homepage,
+    "changelog_uri" => "#{spec.homepage}/blob/main/CHANGELOG.md",
+    "bug_tracker_uri" => "#{spec.homepage}/issues"
   }
 
   spec.files = Dir.chdir(__dir__) do
     Dir[
-      ".rspec",
+      "CHANGELOG.md",
       "Gemfile",
       "LICENSE",
       "README.md",
       "Rakefile",
-      "lib/**/*",
-      "spec/**/*"
+      "lib/**/*"
     ].select { |path| File.file?(path) }
   end
   spec.require_paths = ["lib"]
