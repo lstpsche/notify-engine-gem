@@ -40,6 +40,47 @@ module Notify
       raise DeliveryError.new(errors) if errors.any? && errors.size == adapter_keys.size
     end
 
+    def capture_for_test(name, **payload)
+      name = name.to_sym
+      validate_message!(name)
+
+      payload_instance = resolve_payload_class(name, payload)
+      adapter_keys = resolve_enabled_adapters(name)
+
+      resolved_recipients = {}
+      resolved_subject = nil
+      resolved_locals = nil
+      errors = {}
+
+      adapter_keys.each do |adapter_key|
+        resolution = adapter_resolution_config(adapter_key)
+        begin
+          recipients = resolve_recipients(adapter_key, resolution, payload_instance, payload, name)
+          subj = resolve_subject(adapter_key, resolution, payload_instance, payload, name)
+          locals = resolve_locals(payload_instance, payload)
+
+          resolved_recipients[adapter_key] = recipients
+          resolved_subject = subj if subj && resolved_subject.nil?
+          resolved_locals ||= locals
+        rescue => e
+          errors[adapter_key] = e
+        end
+      end
+
+      delivery = {
+        name: name,
+        adapters: adapter_keys,
+        payload: payload,
+        resolved: {
+          subject: resolved_subject,
+          recipients: resolved_recipients,
+          locals: resolved_locals || resolve_locals(payload_instance, payload)
+        }
+      }
+      delivery[:errors] = errors if errors.any?
+      delivery
+    end
+
     private
 
     def validate_message!(name)

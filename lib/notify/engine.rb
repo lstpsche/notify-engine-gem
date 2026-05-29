@@ -27,5 +27,9 @@ module Notify
         Notify.registry&.freeze! if Rails.env.production?
       end
     end
+
+    initializer "notify_engine.test_mode", after: "notify_engine.registry" do
+      Notify.test_mode! if Rails.env.test?
+    end
   end
 end

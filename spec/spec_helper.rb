@@ -12,6 +12,7 @@ RSpec.configure do |config|
       Notify.reset_config!
       Notify.reset_adapters! if Notify.respond_to?(:reset_adapters!)
       Notify.reset_registry! if Notify.respond_to?(:reset_registry!)
+      Notify.reset_test_mode! if Notify.respond_to?(:reset_test_mode!)
     end
   end
 end

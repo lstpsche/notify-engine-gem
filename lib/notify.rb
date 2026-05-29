@@ -10,6 +10,7 @@ require_relative "notify/mailer"
 require_relative "notify/adapters/email"
 require_relative "notify/dispatcher"
 require_relative "notify/engine"
+require_relative "notify/test_helper"
 
 module Notify
   class << self
@@ -57,8 +58,30 @@ module Notify
       @registry = nil
     end
 
+    def test_mode!
+      @test_mode = true
+      @deliveries ||= []
+    end
+
+    def test_mode?
+      @test_mode == true
+    end
+
+    def deliveries
+      @deliveries ||= []
+    end
+
+    def reset_test_mode!
+      @test_mode = false
+      @deliveries&.clear
+    end
+
     def message(name, **payload)
-      Dispatcher.new.dispatch(name, **payload)
+      if test_mode?
+        deliveries << Dispatcher.new.capture_for_test(name, **payload)
+      else
+        Dispatcher.new.dispatch(name, **payload)
+      end
     end
 
     private
