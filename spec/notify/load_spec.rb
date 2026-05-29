@@ -4,7 +4,7 @@ require "notify"
 
 RSpec.describe Notify do
   it "exposes the version" do
-    expect(described_class::VERSION).to eq("0.1.0")
+    expect(described_class::VERSION).to eq("0.1.1")
   end
 
   it "defines the custom error hierarchy" do

@@ -13,7 +13,7 @@ RSpec.describe "Phase 0 foundation" do
     end
     Notify.register_adapter(:custom, adapter_class)
 
-    expect(Notify::VERSION).to eq("0.1.0")
+    expect(Notify::VERSION).to eq("0.1.1")
     expect(Notify::Error).to be < StandardError
     expect(Notify.config.templates_path).to eq("custom/notify_templates")
     expect(Notify.config.adapters[:email][:helpers]).to eq([:helper])
