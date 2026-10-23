@@ -23,7 +23,10 @@ RSpec.describe Notify::Config do
     it "sets telegram adapter defaults" do
       expect(Notify.config.adapters[:telegram]).to eq(
         enabled: false,
-        bots: []
+        bots: [],
+        open_timeout: 5,
+        read_timeout: 15,
+        write_timeout: 15
       )
     end
 

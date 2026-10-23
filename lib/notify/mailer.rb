@@ -4,7 +4,8 @@ require "action_mailer"
 
 module Notify
   class Mailer < ActionMailer::Base
-    def dispatch(message_name, locals:, to:, subject:, from: nil, cc: nil, bcc: nil, template_path: nil)
+    def dispatch(message_name, locals:, to:, subject:, from: nil, cc: nil, bcc: nil, template_path: nil,
+      message_id: nil, delivery_options: nil, strict: false)
       prepend_view_path(template_path.to_s) if template_path
 
       bridge_locals(locals)
@@ -16,8 +17,10 @@ module Notify
         template_path: ""
       }
       mail_options[:from] = from if from
-      mail_options[:cc] = cc if cc
-      mail_options[:bcc] = bcc if bcc
+      mail_options[:cc] = cc if strict || cc
+      mail_options[:bcc] = bcc if strict || bcc
+      mail_options[:message_id] = message_id if message_id
+      mail_options[:delivery_method_options] = delivery_options if delivery_options && !delivery_options.empty?
 
       mail(mail_options)
     end

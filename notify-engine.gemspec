@@ -41,4 +41,5 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "rake", ">= 13.0", "< 15.0"
   spec.add_development_dependency "rspec", ">= 3.13", "< 4.0"
   spec.add_development_dependency "rspec-rails", ">= 7.0", "< 9.0"
+  spec.add_development_dependency "webmock", ">= 3.23", "< 4.0"
 end

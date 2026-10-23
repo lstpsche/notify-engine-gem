@@ -17,7 +17,7 @@ module Notify
       end
 
       if to
-        expected = Array(to)
+        expected = to.is_a?(Hash) ? [to] : Array(to)
         all_recipients = matching.flat_map do |d|
           (d[:resolved][:recipients] || {}).values.flatten
         end
