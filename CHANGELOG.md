@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.0] - Unreleased
+## [0.2.0] - 2026-10-23
 
 ### Added
 
@@ -35,5 +35,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Structured error handling: `Notify::UnknownMessage`, `Notify::MissingRecipients`, `Notify::MissingSubject`, and `Notify::DeliveryError` with aggregated `.adapter_errors` — per-adapter error isolation ensures one failure does not block other adapters
 - Pluggable adapter system via `Notify.register_adapter(:name, klass)` and `Notify::Adapters::Base` contract (`#deliver`, `.template_extensions`) for custom delivery channels
 
+[0.2.0]: https://github.com/lstpsche/notify-engine-gem/releases/tag/v0.2.0
 [0.1.1]: https://github.com/lstpsche/notify-engine-gem/releases/tag/v0.1.1
 [0.1.0]: https://github.com/lstpsche/notify-engine-gem/releases/tag/v0.1.0
