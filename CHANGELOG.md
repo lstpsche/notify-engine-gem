@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - Unreleased
+
+### Added
+
+- Explicit single-channel `Notify.deliver` with required recipients, native JSON-safe locals, typed results and sanitized failure dispositions, preserving existing `Notify.message` behavior.
+- `Notify.prepare` renders and validates without provider I/O, returning a process-local callable so callers can persist a pre-send checkpoint before delivery.
+- Telegram adapter with named bots, plain-text templates, explicit chat destinations, bounded verified HTTPS requests, provider rate-delay metadata and safe access/permission errors.
+- Per-message email Message-ID and SMTP timeout options; synchronous, queued, captured and suppressed outcomes remain distinct.
+- Strict email delivery telemetry filters recipient and message fields. Capture mode retains explicit targets without claiming provider acceptance.
+- Strict mail guards validate destinations and transport after interceptors; failures known to precede transport expose `attempted: false`. SMTP cleanup preserves the original transmission outcome.
+
 ## [0.1.1] - 2026-05-29
 
 ### Fixed

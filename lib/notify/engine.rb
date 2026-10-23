@@ -14,6 +14,7 @@ module Notify
 
     initializer "notify_engine.register_adapters" do
       Notify.register_adapter(:email, Notify::Adapters::Email)
+      Notify.register_adapter(:telegram, Notify::Adapters::Telegram)
     end
 
     initializer "notify_engine.registry" do |app|

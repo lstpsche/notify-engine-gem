@@ -2,13 +2,19 @@
 
 require_relative "notify/version"
 require_relative "notify/errors"
+require_relative "notify/delivery_result"
 require_relative "notify/config"
 require_relative "notify/payload_class"
 require_relative "notify/registry"
 require_relative "notify/adapters/base"
 require_relative "notify/mailer"
+require_relative "notify/strict_mailer"
 require_relative "notify/adapters/email"
+require_relative "notify/telegram_client"
+require_relative "notify/telegram_renderer"
+require_relative "notify/adapters/telegram"
 require_relative "notify/dispatcher"
+require_relative "notify/strict_delivery"
 require_relative "notify/engine"
 require_relative "notify/test_helper"
 
@@ -82,6 +88,14 @@ module Notify
       else
         Dispatcher.new.dispatch(name, **payload)
       end
+    end
+
+    def deliver(name, **options)
+      StrictDelivery.new.call(name, **options)
+    end
+
+    def prepare(name, **options)
+      StrictDelivery.new.prepare(name, **options)
     end
 
     private

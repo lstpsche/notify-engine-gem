@@ -19,7 +19,10 @@ module Notify
         },
         telegram: {
           enabled: false,
-          bots: []
+          bots: [],
+          open_timeout: 5,
+          read_timeout: 15,
+          write_timeout: 15
         }
       }
       @messages = {}

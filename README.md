@@ -2,10 +2,10 @@
 
 Convention-over-configuration multi-channel notification dispatch for Rails.
 
-- Single dispatch interface: `Notify.message(:name, **payload)`
+- Conventional dispatch: `Notify.message(:name, **payload)`; explicit delivery outcomes: `Notify.deliver(:name, via:, to:, ...)`
 - Filesystem-driven adapter routing — presence of a template determines which channels fire
 - Optional payload class compute layer for recipient resolution, subject building, and data transformation
-- Pluggable adapters (email built-in, custom adapters via `Notify.register_adapter`)
+- Pluggable adapters (email and Telegram built-in, custom adapters via `Notify.register_adapter`)
 - Introspection: `Notify.messages` and `Notify.adapters`
 
 ## Installation
@@ -80,7 +80,7 @@ app/notify_templates/
 │   ├── export_report.html.erb
 │   └── _disabled_message.html.erb  # _ prefix = excluded from registry
 ├── telegram/
-│   └── stuck_pg_jobs.md.erb
+│   └── stuck_pg_jobs.text.erb
 ├── stuck_pg_jobs.rb                # optional PayloadClass
 └── export_report.rb                # optional PayloadClass
 ```
@@ -123,7 +123,7 @@ Notify.configure do |config|
     subject_prefix: -> { "[#{Rails.env.upcase}]:" }   # default: nil (String or Proc)
   }
 
-  # Telegram adapter (architecture-ready, not yet implemented)
+  # Telegram adapter (disabled until explicitly configured)
   config.adapters[:telegram] = {
     enabled: false,
     bots: []
@@ -473,11 +473,10 @@ When multiple adapters handle a message, one adapter failing does not block the 
 
 If a payload class raises during `initialize` or any resolution method, the error is caught and logged. The dispatcher falls back to raw payload mode for that adapter.
 
-## Out of Scope (MVP)
+## Out of Scope
 
-The following are explicitly not part of the 0.1.0 release:
+The following are outside the gem's scope:
 
-- Telegram Bot API delivery (architecture supports it, implementation deferred)
 - Delivery tracking / persistence
 - User preferences / opt-out
 - Template previews (à la `ActionMailer::Preview`)
@@ -512,3 +511,74 @@ gem build notify-engine.gemspec
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+## Explicit delivery outcomes
+
+Use `Notify.deliver` when the caller must identify one exact destination and know what happened. It does not consult payload-class recipients, default recipients, CC/BCC overrides or per-message subject defaults. Email still uses the configured sender, layout, helpers and subject prefix.
+
+```ruby
+result = Notify.deliver(:alert,
+  via: :email,
+  to: "operator@example.com",
+  subject: "Document needs attention",
+  locals: { body: "Review the document in the application." },
+  delivery_method: :deliver_now,
+  message_id: "stable-document-notice@example.com",
+  delivery_options: { open_timeout: 5, read_timeout: 15 })
+
+result.adapter     # :email
+result.status      # :accepted, :enqueued or :captured
+result.provider_id # optional String
+```
+
+`accepted` means the provider accepted the write. `enqueued` means only that ActionMailer accepted an asynchronous job. `captured` means test capture or a local test/file transport. Suppressed delivery and missing/disabled adapters are explicit failures. Acceptance does not prove inbox placement, human visibility or reading.
+
+Failures raise `Notify::DeliveryFailure` with a safe `code`, `disposition` (`permanent`, `retryable` or `uncertain`), and optional `http_status`, `provider_error_code`, and `retry_after`. `attempted == false` explicitly identifies a failure known to precede transport execution; nil leaves that unspecified. No automatic retries are performed. A timeout or lost response after transmission can be uncertain and must not be blindly retried. Strict errors emit `notify.adapter.error` once; transport invocations emit `notify.adapter.deliver` without recipient/content fields. Callers own persistence, retry policy, rate coordination and reconciliation.
+
+Strict email checks its recipient, envelope destination and transport again after Mail interceptors run. Interceptors may suppress delivery, but redirecting it, adding recipients or substituting an unsupported transport fails before provider I/O. SMTP session cleanup cannot replace the original transmission failure or undo known acceptance.
+
+For a durable sender, prepare before recording the send boundary:
+
+```ruby
+prepared = Notify.prepare(:alert, via: :email, to: "operator@example.com",
+  subject: "Document needs attention", locals: { body: "Review required." })
+# Persist the application's pre-send checkpoint here.
+result = prepared.call
+# Persist acceptance outside the provider-error rescue boundary.
+```
+
+Preparation renders/validates without opening a provider connection. The callable is process-local: do not serialize or enqueue it. Calling it again performs another invocation; idempotency belongs to the caller. Use native JSON-safe locals so `deliver_later` remains serializable. Custom legacy adapters need not implement the strict API.
+
+## Telegram
+
+Configure named bot entries. Tokens can be callables and are evaluated when preparing a message:
+
+```ruby
+Notify.configure do |config|
+  config.adapters[:telegram] = {
+    enabled: true,
+    bots: [{ name: :alerts, token: -> { ENV.fetch("ALERT_BOT_TOKEN") }, enabled: true }],
+    open_timeout: 5, read_timeout: 15, write_timeout: 15
+  }
+end
+```
+
+Create `app/notify_templates/telegram/alert.text.erb`, using ordinary template locals:
+
+```erb
+<%= text -%>
+```
+
+```ruby
+Notify.deliver(:alert, via: :telegram,
+  to: { bot: :alerts, chat_id: "@alerts_channel" },
+  locals: { text: "Document needs attention." })
+```
+
+Telegram is synchronous and uses plain text, with no parse mode or link previews. Messages must fit the Bot API's 4096-character limit; the adapter rejects oversized input instead of splitting it. Bot and chat must be explicit for strict sends. Public channel/supergroup handles and numeric chat IDs are supported; personal usernames are not direct-message destinations. Channel owners must add the bot and grant posting rights. Personal recipients must first start/message the bot and then be addressed by numeric chat ID.
+
+Legacy `Notify.message(:alert, tg_bots: [:alerts], text: "...")` can select configured bot names when each has an explicit default `chat_id` in its bot entry. A disabled bot is skipped only in legacy dispatch; unknown names are errors. Strict sends never fall back to a bot's default chat.
+
+Telegram failures expose stable safe reasons including unavailable chat, missing membership/posting rights, blocking, invalid credentials and rate limits. Unknown provider descriptions remain generic rejections. A migrated chat ID requires configuration correction and is never silently substituted. Raw provider descriptions and credential-bearing exceptions are not retained. If the application instruments Net::HTTP, redact bot-token URL segments in its breadcrumb/transaction exporters too; the Telegram API puts the token in the request path.
+
+`Notify.test_mode!` captures strict targets/locals in `Notify.deliveries` and returns `captured`. Disable that mode explicitly when testing actual transport behavior with a fake provider. No bot polling, inbound webhook, user-account login, database ledger or background retry engine is included.
