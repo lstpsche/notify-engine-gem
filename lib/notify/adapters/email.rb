@@ -15,16 +15,22 @@ module Notify
           accepted = false
           connected = false
           response = nil
+          transmission_failure = nil
           super do |smtp|
             connected = true
-            response = yield smtp
+            begin
+              response = yield smtp
+            rescue StandardError => error
+              transmission_failure = Email.delivery_failure(error)
+              raise transmission_failure, cause: nil
+            end
             accepted = true
             response
           end
         rescue StandardError => error
           return response if accepted
 
-          failure = Email.delivery_failure(error)
+          failure = transmission_failure || Email.delivery_failure(error)
           if connected && failure.code == "connection_failed"
             failure = DeliveryFailure.new("smtp_outcome_unknown", disposition: :uncertain)
           end
@@ -59,8 +65,7 @@ module Notify
         end
 
         mail = message.message
-        validate_transport!(mail)
-        mail.delivery_method.extend(SMTPAcceptance) if mail.delivery_method.is_a?(Mail::SMTP)
+        self.class.validate_transport!(mail)
         -> { send_prepared(message, mail) }
       rescue DeliveryFailure => error
         raise error, cause: nil
@@ -121,6 +126,14 @@ module Notify
         end
       end
 
+      def self.validate_transport!(mail)
+        raise DeliveryFailure.new("delivery_suppressed", attempted: false) unless mail.perform_deliveries
+        raise DeliveryFailure.new("delivery_errors_disabled", attempted: false) unless mail.raise_delivery_errors
+        unless [Mail::SMTP, Mail::Sendmail, Mail::TestMailer, Mail::FileDelivery].any? { |klass| mail.delivery_method.is_a?(klass) }
+          raise DeliveryFailure.new("unsupported_email_transport", attempted: false)
+        end
+      end
+
       private
 
       def build_message(message_name, to, subject, locals, template_path, options)
@@ -148,14 +161,6 @@ module Notify
           mailer.with(attributes).dispatch_strict(message_name)
         else
           mailer.dispatch(message_name, **attributes)
-        end
-      end
-
-      def validate_transport!(mail)
-        raise DeliveryFailure, "delivery_suppressed" unless mail.perform_deliveries
-        raise DeliveryFailure, "delivery_errors_disabled" unless mail.raise_delivery_errors
-        unless [Mail::SMTP, Mail::Sendmail, Mail::TestMailer, Mail::FileDelivery].any? { |klass| mail.delivery_method.is_a?(klass) }
-          raise DeliveryFailure, "unsupported_email_transport"
         end
       end
 

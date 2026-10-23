@@ -11,6 +11,8 @@ RSpec.describe "strict notification delivery" do
   let(:endpoint) { "https://api.telegram.org/bot#{token}/sendMessage" }
   let(:options) { { via: :telegram, to: destination, locals: { text: "Привіт <world> & 👋" } } }
   let(:interceptor) { double("Mail interceptor") }
+  let(:custom_transport) { double("Custom transport") }
+  let(:custom_transport_class) { Class.new }
 
   around do |example|
     Dir.mktmpdir do |directory|
@@ -207,6 +209,41 @@ RSpec.describe "strict notification delivery" do
     end
   end
 
+  { to: "redirected@example.com", bcc: "copy@example.com", smtp_envelope_to: "envelope@example.com" }.each do |field, address|
+    context "when an interceptor changes #{field}" do
+      before do
+        allow(interceptor).to receive(:delivering_email) { |mail| mail.public_send("#{field}=", address) }
+        Mail.register_interceptor(interceptor)
+      end
+
+      after { Mail.unregister_interceptor(interceptor) }
+
+      it "rejects a changed destination before the transport executes" do
+        expect { Notify.deliver(:alert, via: :email, to: "one@example.com", subject: "Hello",
+          locals: { text: "body", strict_recipient: address }) }
+          .to raise_error(Notify::DeliveryFailure) { |error|
+            expect([error.code, error.attempted]).to eq(["recipient_changed", false])
+          }
+      end
+    end
+  end
+
+  context "when an interceptor changes the mail transport" do
+    before do
+      allow(custom_transport_class).to receive(:new).with(any_args).and_return(custom_transport)
+      allow(interceptor).to receive(:delivering_email) { |mail| mail.delivery_method(custom_transport_class) }
+      Mail.register_interceptor(interceptor)
+    end
+
+    after { Mail.unregister_interceptor(interceptor) }
+
+    it "rejects the unsupported transport without invoking it" do
+      expect(custom_transport).not_to receive(:deliver!)
+      expect { Notify.deliver(:alert, via: :email, to: "one@example.com", subject: "Hello", locals: { text: "body" }) }
+        .to raise_error(Notify::DeliveryFailure, "unsupported_email_transport")
+    end
+  end
+
   context "when an interceptor disables delivery error reporting" do
     before do
       allow(interceptor).to receive(:delivering_email) { |mail| mail.raise_delivery_errors = false }
@@ -215,10 +252,10 @@ RSpec.describe "strict notification delivery" do
 
     after { Mail.unregister_interceptor(interceptor) }
 
-    it "preserves uncertainty rather than assuming an unobservable transport result was accepted" do
+    it "stops before a transport with disabled error reporting can run" do
       expect { Notify.deliver(:alert, via: :email, to: "one@example.com", subject: "Hello", locals: { text: "body" }) }
         .to raise_error(Notify::DeliveryFailure) { |error|
-          expect([error.code, error.disposition]).to eq(["delivery_errors_disabled", :uncertain])
+          expect([error.code, error.disposition, error.attempted]).to eq(["delivery_errors_disabled", :permanent, false])
         }
     end
   end

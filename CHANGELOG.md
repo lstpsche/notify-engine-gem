@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Telegram adapter with named bots, plain-text templates, explicit chat destinations, bounded verified HTTPS requests, provider rate-delay metadata and safe access/permission errors.
 - Per-message email Message-ID and SMTP timeout options; synchronous, queued, captured and suppressed outcomes remain distinct.
 - Strict email delivery telemetry filters recipient and message fields. Capture mode retains explicit targets without claiming provider acceptance.
+- Strict mail guards validate destinations and transport after interceptors; failures known to precede transport expose `attempted: false`. SMTP cleanup preserves the original transmission outcome.
 
 ## [0.1.1] - 2026-05-29
 

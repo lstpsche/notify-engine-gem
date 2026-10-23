@@ -7,14 +7,15 @@ module Notify
   class MissingSubject < Error; end
 
   class DeliveryFailure < Error
-    attr_reader :code, :disposition, :http_status, :provider_error_code, :retry_after
+    attr_reader :code, :disposition, :http_status, :provider_error_code, :retry_after, :attempted
 
-    def initialize(code, disposition: :permanent, http_status: nil, provider_error_code: nil, retry_after: nil)
+    def initialize(code, disposition: :permanent, http_status: nil, provider_error_code: nil, retry_after: nil, attempted: nil)
       @code = code.to_s
       @disposition = disposition.to_sym
       @http_status = http_status
       @provider_error_code = provider_error_code
       @retry_after = retry_after
+      @attempted = attempted
       super(@code)
     end
   end

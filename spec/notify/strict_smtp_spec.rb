@@ -100,6 +100,16 @@ RSpec.describe "strict SMTP delivery" do
         expect(error.cause).to be_nil
       }
     end
+
+    context "when QUIT also fails permanently" do
+      let(:quit_response) { "550 Teardown rejected" }
+
+      it "preserves the original temporary rejection" do
+        expect { Notify.deliver(:alert, **options) }.to raise_error(Notify::DeliveryFailure) { |error|
+          expect(error.disposition).to eq(:retryable)
+        }
+      end
+    end
   end
 
   context "with a permanent RCPT rejection" do
@@ -162,6 +172,16 @@ RSpec.describe "strict SMTP delivery" do
       expect { Notify.deliver(:alert, **options) }.to raise_error(Notify::DeliveryFailure) { |error|
         expect([error.code, error.disposition, error.cause]).to eq(["smtp_outcome_unknown", :uncertain, nil])
       }
+    end
+
+    context "when QUIT returns a temporary rejection" do
+      let(:quit_response) { "450 Teardown rejected" }
+
+      it "does not turn an uncertain transmission into a retryable cleanup failure" do
+        expect { Notify.deliver(:alert, **options) }.to raise_error(Notify::DeliveryFailure) { |error|
+          expect([error.code, error.disposition, error.cause]).to eq(["smtp_outcome_unknown", :uncertain, nil])
+        }
+      end
     end
   end
 end

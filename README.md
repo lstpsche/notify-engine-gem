@@ -533,7 +533,9 @@ result.provider_id # optional String
 
 `accepted` means the provider accepted the write. `enqueued` means only that ActionMailer accepted an asynchronous job. `captured` means test capture or a local test/file transport. Suppressed delivery and missing/disabled adapters are explicit failures. Acceptance does not prove inbox placement, human visibility or reading.
 
-Failures raise `Notify::DeliveryFailure` with a safe `code`, `disposition` (`permanent`, `retryable` or `uncertain`), and optional `http_status`, `provider_error_code`, and `retry_after`. No automatic retries are performed. A timeout or lost response after transmission can be uncertain and must not be blindly retried. Strict errors emit `notify.adapter.error` once; transport invocations emit `notify.adapter.deliver` without recipient/content fields. Callers own persistence, retry policy, rate coordination and reconciliation.
+Failures raise `Notify::DeliveryFailure` with a safe `code`, `disposition` (`permanent`, `retryable` or `uncertain`), and optional `http_status`, `provider_error_code`, and `retry_after`. `attempted == false` explicitly identifies a failure known to precede transport execution; nil leaves that unspecified. No automatic retries are performed. A timeout or lost response after transmission can be uncertain and must not be blindly retried. Strict errors emit `notify.adapter.error` once; transport invocations emit `notify.adapter.deliver` without recipient/content fields. Callers own persistence, retry policy, rate coordination and reconciliation.
+
+Strict email checks its recipient, envelope destination and transport again after Mail interceptors run. Interceptors may suppress delivery, but redirecting it, adding recipients or substituting an unsupported transport fails before provider I/O. SMTP session cleanup cannot replace the original transmission failure or undo known acceptance.
 
 For a durable sender, prepare before recording the send boundary:
 
